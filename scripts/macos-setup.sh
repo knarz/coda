@@ -82,7 +82,7 @@ require-sigs = false
 EOF
   fi
   set +e
-  nix-build --dry-run src/app/kademlia-haskell/release2.nix 2>&1 | grep -q 'these derivations will be built'
+  nix-build --dry-run src/app/kademlia-haskell/release2.nix src/app/libp2p_helper/default.nix 2>&1 | grep -q 'these derivations will be built'
   building_kad=$?
   set -e
   make kademlia
