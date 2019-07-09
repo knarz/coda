@@ -41,14 +41,12 @@ include Testnet_postake_ledger_many_proposers
 
 [%%else]
 
-[%%error
-"\"genesis_ledger\" is set to invalid value in config.mlh"]
+let _ = "\"genesis_ledger\" is set to invalid value in config.mlh" ; exit 1
 
 [%%endif]
 
 [%%else]
 
-[%%error
-"\"genesis_ledger\" not set in config.mlh"]
+let _ = "\"genesis_ledger\" not set in config.mlh" ; exit 1
 
 [%%endif]

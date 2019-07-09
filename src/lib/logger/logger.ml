@@ -32,7 +32,7 @@ module Source = struct
 end
 
 module Metadata = struct
-  type t = Yojson.Safe.json String.Map.t
+  type t = Yojson.Safe.t String.Map.t
 
   let empty = String.Map.empty
 
@@ -148,7 +148,7 @@ type 'a log_function =
      t
   -> module_:string
   -> location:string
-  -> ?metadata:(string, Yojson.Safe.json) List.Assoc.t
+  -> ?metadata:(string, Yojson.Safe.t) List.Assoc.t
   -> ('a, unit, string, unit) format4
   -> 'a
 

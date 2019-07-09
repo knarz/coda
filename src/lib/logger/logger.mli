@@ -14,9 +14,9 @@ val settings : (Level.t * Logproc_lib.Interpolator.config option) ref
 module Time : sig
   include module type of Time
 
-  val to_yojson : t -> Yojson.Safe.json
+  val to_yojson : t -> Yojson.Safe.t
 
-  val of_yojson : Yojson.Safe.json -> (t, string) Result.t
+  val of_yojson : Yojson.Safe.t -> (t, string) Result.t
 end
 
 module Source : sig
@@ -27,7 +27,7 @@ module Source : sig
 end
 
 module Metadata : sig
-  type t = Yojson.Safe.json String.Map.t [@@deriving yojson]
+  type t = Yojson.Safe.t String.Map.t [@@deriving yojson]
 end
 
 module Message : sig
@@ -45,7 +45,7 @@ val format_message :
   -> level:Level.t
   -> module_:string
   -> location:string
-  -> ?metadata:(string, Yojson.Safe.json) List.Assoc.t
+  -> ?metadata:(string, Yojson.Safe.t) List.Assoc.t
   -> ('a, unit, string, string) format4
   -> 'a
 
@@ -53,15 +53,15 @@ type 'a log_function =
      t
   -> module_:string
   -> location:string
-  -> ?metadata:(string, Yojson.Safe.json) List.Assoc.t
+  -> ?metadata:(string, Yojson.Safe.t) List.Assoc.t
   -> ('a, unit, string, unit) format4
   -> 'a
 
-val create : ?metadata:(string, Yojson.Safe.json) List.Assoc.t -> unit -> t
+val create : ?metadata:(string, Yojson.Safe.t) List.Assoc.t -> unit -> t
 
 val null : unit -> t
 
-val extend : t -> (string, Yojson.Safe.json) List.Assoc.t -> t
+val extend : t -> (string, Yojson.Safe.t) List.Assoc.t -> t
 
 val trace : _ log_function
 

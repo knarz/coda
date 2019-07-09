@@ -51,8 +51,8 @@ fi
 if [[ $COMPILE_THINGS == "YES" ]]; then
   opam update
   # This is dirty, keep the OCaml project version up to date!
-  opam switch create 4.07.1 || true 
-  opam switch 4.07.1
+  opam switch create 4.08.0 || true 
+  opam switch 4.08.0
   # All our ocaml packages
   env TERM=xterm opam switch -y import src/opam.export
   eval $(opam config env)

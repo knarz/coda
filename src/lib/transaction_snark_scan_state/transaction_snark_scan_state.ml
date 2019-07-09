@@ -125,7 +125,7 @@ module Make
     type t = Transaction_snark_statement.t Parallel_scan.Job_view.t
     [@@deriving sexp]
 
-    let to_yojson ((pos, job) : t) : Yojson.Safe.json =
+    let to_yojson ((pos, job) : t) : Yojson.Safe.t =
       let hash_string h = Sexp.to_string (Frozen_ledger_hash.sexp_of_t h) in
       let statement_to_yojson (s : Transaction_snark_statement.t) =
         `Assoc
