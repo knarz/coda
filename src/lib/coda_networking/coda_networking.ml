@@ -660,7 +660,10 @@ module Make (Inputs : Inputs_intf) = struct
         ; Consensus.Hooks.Rpcs.implementations ~logger:config.logger
             ~local_state:config.consensus_local_state ]
     in
-    let%map gossip_net =
+    (* RIGHT HERE before starting the gossip net, query all the initial peers
+    with Get_chain_id. Filter to only the ones that are the same as ours. If
+    none, fail. *)
+    let%bind gossip_net =
       Gossip_net.create config.gossip_net_params implementations
     in
     (* TODO: Think about buffering:

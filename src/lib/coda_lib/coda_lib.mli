@@ -94,3 +94,9 @@ val most_recent_valid_transition :
 val top_level_logger : t -> Logger.t
 
 val config : t -> Config.t
+
+(** [chain_id] is the genesis state hash plus the hash of the SNARK keys
+
+  This is used on startup to determine if our seed node is even on the same chain.
+*)
+val chain_id : string Lazy.t

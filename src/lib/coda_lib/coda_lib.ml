@@ -264,6 +264,16 @@ let staged_ledger_ledger_proof t =
 
 let validated_transitions t = t.pipes.validated_transitions_reader
 
+let chain_id () =
+  (* FIXME: including anything except all_snark_keys is probably unnecessary? *)
+  lazy (
+  let genesis_state_hash = (Lazy.force Coda_state.Genesis_protocol_state.t).hash |> State_hash.to_base58 in
+  let all_snark_keys = List.fold_left (^) "" Snark_keys.key_hashes in
+  let b2 = Blake2.digest_string (genesis_hash ^ all_snark_keys) in
+  Blake2.to_hex b2
+  )
+
+
 let root_diff t =
   let root_diff_reader, root_diff_writer =
     Strict_pipe.create ~name:"root diff"
