@@ -199,11 +199,8 @@ module Make (Message : Message_intf) : S with type msg := Message.msg = struct
         Linear_pipe.iter_unordered ~max_concurrency:64
           (Membership.changes t.membership) ~f:(function
           | Connect peers ->
-              Logger.info t.logger ~module_:__MODULE__ ~location:__LOC__
-                !"Connected to some peers [%s]"
-                (Peer.pretty_list peers) ;
-              let%map () =
-                Deferred.List.iter peers ~f:(fun peer ->
+              let%map kept_peers =
+                Deferred.List.filter peers ~f:(fun peer ->
                     if%map t.filter_peer peer then (
                       Coda_metrics.(Gauge.inc_one Network.peers) ;
                       Hash_set.add t.peers peer ;
@@ -212,9 +209,13 @@ module Make (Message : Message_intf) : S with type msg := Message.msg = struct
                         Int.equal (Hash_set.length t.peers)
                           disconnect_clear_threshold
                       then Hash_set.clear t.disconnected_peers
-                      else Hash_set.remove t.disconnected_peers peer )
-                    else () )
+                      else Hash_set.remove t.disconnected_peers peer ;
+                      true )
+                    else false )
               in
+              Logger.info t.logger ~module_:__MODULE__ ~location:__LOC__
+                !"Connected to some peers [%s]"
+                (Peer.pretty_list kept_peers) ;
               Ivar.fill_if_empty t.first_connect ()
           | Disconnect peers ->
               Logger.info t.logger ~module_:__MODULE__ ~location:__LOC__

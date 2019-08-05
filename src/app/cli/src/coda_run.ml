@@ -337,7 +337,7 @@ let run_snark_worker ?shutdown_on_disconnect:(s = true) ~client_port
       |> ignore
 
 let handle_crash e =
-  match e with
+  match Monitor.extract_exn e with
   | Coda_networking.No_initial_peers ->
       Core.eprintf
         !{err|
