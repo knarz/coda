@@ -562,13 +562,3 @@ module Visualization = struct
         ~bin_response
   end
 end
-
-module Get_chain_id = struct
-  type query = unit [@@deriving bin_io]
-
-  type response = string [@@deriving bin_io]
-
-  let rpc : (query, response) Rpc.Rpc.t =
-    Rpc.Rpc.create ~name:"Get_chain_id" ~version:0 ~bin_query
-      ~bin_response
-end

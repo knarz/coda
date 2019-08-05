@@ -3,6 +3,8 @@ open Coda_transition
 
 val refused_answer_query_string : string
 
+type exn += Mismatched_chain_id
+
 module type Base_inputs_intf = Coda_intf.Inputs_intf
 
 module type Inputs_intf = sig

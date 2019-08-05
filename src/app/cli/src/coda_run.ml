@@ -184,11 +184,7 @@ let setup_local_server ?(client_whitelist = []) ?rest_server_port
           in
           Coda_lib.replace_propose_keypairs coda
             (Keypair.And_compressed_pk.Set.of_list keypair_and_compressed_key) ;
-          Deferred.unit )
-    ; implement Daemon_rpcs.Get_chain_id.rpc (fun () () ->
-      Coda_lib.chain_id coda
-    )
-          ]
+          Deferred.unit ) ]
   in
   let snark_worker_impls =
     [ implement Snark_worker.Rpcs.Get_work.Latest.rpc (fun () () ->

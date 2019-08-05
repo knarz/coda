@@ -530,6 +530,8 @@ let daemon logger =
                ; logger
                ; target_peer_count= 8
                ; conf_dir
+               ; chain_id=
+                   Lazy.force Coda_state.Genesis_protocol_state.chain_id
                ; initial_peers= initial_peers_cleaned
                ; addrs_and_ports
                ; trust_system
