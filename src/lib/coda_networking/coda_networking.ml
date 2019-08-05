@@ -714,13 +714,13 @@ module Make (Inputs : Inputs_intf) = struct
       Gossip_net.create config.gossip_net_params implementations
     in
     don't_wait_for
-      (let%bind () = Ivar.read gossip_net.first_connect in
+      (let%map () = Ivar.read gossip_net.first_connect in
        (* After first_connect this list will only be empty if we filtered out all the peers due to mismatched chain id. *)
        let initial_peers = Gossip_net.peers gossip_net in
-       if List.is_empty initial_peers then
+       if List.is_empty initial_peers then (
          Logger.fatal config.logger "Failed to connect to any initial peers"
            ~module_:__MODULE__ ~location:__LOC__ ;
-       raise No_initial_peers) ;
+         raise No_initial_peers )) ;
     (* TODO: Think about buffering:
        I.e., what do we do when too many messages are coming in, or going out.
        For example, some things you really want to not drop (like your outgoing
