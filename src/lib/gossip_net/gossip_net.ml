@@ -591,8 +591,8 @@ module Make (Message : Message_intf) : S with type msg := Message.msg = struct
                     Strict_pipe.Writer.write received_writer
                       (Envelope.Incoming.wrap ~data:msg ~sender) )
               @ implementation_list
-              @ [ Rpc.Rpc.implement Get_chain_id.rpc (fun _ () ->
-                      config.chain_id ) ] )
+              @  Get_chain_id.implement_multi (fun _ ~version:_ () ->
+                      config.chain_id ) )
           in
           let handle_unknown_rpc conn ~rpc_tag ~version =
             let inet_addr = Unix.Inet_addr.of_string conn.Host_and_port.host in
