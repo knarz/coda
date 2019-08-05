@@ -19,6 +19,48 @@ let maybe_sleep _ = Deferred.unit
 
 [%%endif]
 
+let chain_id =
+  (* FIXME: including anything except all_snark_keys is probably unnecessary? *)
+  lazy
+    (let genesis_state_hash =
+       (Lazy.force Coda_state.Genesis_protocol_state.t).hash
+       |> State_hash.to_base58_check
+     in
+     let all_snark_keys =
+       List.fold_left ~f:( ^ ) ~init:"" Snark_keys.key_hashes
+     in
+     let b2 = Blake2.digest_string (genesis_state_hash ^ all_snark_keys) in
+     Blake2.to_hex b2)
+
+let make_filter_peer net logger peer =
+  let open Network_peer in
+  let%bind net = net in
+  let our_chain_id = Lazy.force chain_id in
+  match%map Coda_networking.get_chain_id net peer with
+  | Ok their_chain_id ->
+      if String.equal their_chain_id our_chain_id then true
+      else (
+        Logger.warn logger
+          "Refusing to connect to %s because their chain ID $theirs does not \
+           match $ours"
+          ~location:__LOC__ ~module_:__MODULE__
+          ~metadata:
+            [ ("peer", Peer.to_yojson peer)
+            ; ("theirs", `String their_chain_id)
+            ; ("ours", `String our_chain_id) ]
+          (Peer.to_string peer) ;
+        false )
+  | Error e ->
+      Logger.warn logger
+        "Refusing to connect to %s because retrieving the chain ID failed: \
+         $error"
+        ~location:__LOC__ ~module_:__MODULE__
+        ~metadata:
+          [ ("peer", Peer.to_yojson peer)
+          ; ("error", `String (Error.to_string_hum e)) ]
+        (Peer.to_string peer) ;
+      false
+
 let daemon logger =
   let open Command.Let_syntax in
   let open Cli_lib.Arg_type in
@@ -520,18 +562,19 @@ let daemon logger =
          in
          trace_database_initialization "consensus local state" __LOC__
            trust_dir ;
+         let net_ivar = Ivar.create () in
          let net_config =
            { Coda_networking.Config.logger
            ; trust_system
            ; time_controller
            ; consensus_local_state
+           ; chain_id= Lazy.force chain_id
            ; gossip_net_params=
                { timeout= Time.Span.of_sec 3.
                ; logger
                ; target_peer_count= 8
                ; conf_dir
-               ; chain_id=
-                   Lazy.force Coda_state.Genesis_protocol_state.chain_id
+               ; filter_peer= make_filter_peer (Ivar.read net_ivar) logger
                ; initial_peers= initial_peers_cleaned
                ; addrs_and_ports
                ; trust_system
@@ -579,6 +622,7 @@ let daemon logger =
                 ~transaction_database ~external_transition_database
                 ~is_archive_node ~work_reassignment_wait ())
          in
+         Ivar.fill net_ivar (Coda_lib.net coda) ;
          { Coda_initialization.coda
          ; client_whitelist
          ; rest_server_port

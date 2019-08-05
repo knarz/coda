@@ -427,12 +427,13 @@ module T = struct
             ; trust_system
             ; time_controller
             ; consensus_local_state
+            ; chain_id= "bogus chain id for testing"
             ; gossip_net_params=
                 { Coda_networking.Gossip_net.Config.timeout= Time.Span.of_sec 3.
                 ; target_peer_count= 8
                 ; conf_dir
                 ; initial_peers= peers
-                ; chain_id= "bogus chain id for test"
+                ; filter_peer= (fun _ -> return true)
                 ; addrs_and_ports
                 ; logger
                 ; trust_system

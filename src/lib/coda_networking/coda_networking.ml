@@ -325,6 +325,50 @@ module Make_rpcs (Inputs : Base_inputs_intf) = struct
       include Register (T)
     end
   end
+
+  module Get_chain_id = struct
+    module Master = struct
+      let name = "get_chain_id"
+
+      module T = struct
+        (* "master" types, do not change *)
+        type query = unit
+
+        type response = string
+      end
+
+      module Caller = T
+      module Callee = T
+    end
+
+    include Master.T
+    module M = Versioned_rpc.Both_convert.Plain.Make (Master)
+    include M
+
+    include Perf_histograms.Rpc.Plain.Extend (struct
+      include M
+      include Master
+    end)
+
+    module V1 = struct
+      module T = struct
+        type query = unit [@@deriving bin_io, version {rpc}]
+
+        type response = string [@@deriving bin_io, version {rpc}]
+
+        let query_of_caller_model = Fn.id
+
+        let callee_model_of_query = Fn.id
+
+        let response_of_callee_model = Fn.id
+
+        let caller_model_of_response = Fn.id
+      end
+
+      include T
+      include Register (T)
+    end
+  end
 end
 
 module Make_message (Inputs : sig
@@ -438,6 +482,7 @@ module type Config_intf = sig
   type t =
     { logger: Logger.t
     ; trust_system: Trust_system.t
+    ; chain_id: string
     ; gossip_net_params: gossip_config
     ; time_controller: Block_time.Controller.t
     ; consensus_local_state: Consensus.Data.Local_state.t }
@@ -464,6 +509,7 @@ module Make (Inputs : Inputs_intf) = struct
     type t =
       { logger: Logger.t
       ; trust_system: Trust_system.t
+      ; chain_id: string
       ; gossip_net_params: Gossip_net.Config.t
       ; time_controller: Block_time.Controller.t
       ; consensus_local_state: Consensus.Data.Local_state.t }
@@ -659,21 +705,23 @@ module Make (Inputs : Inputs_intf) = struct
             get_transition_chain_witness_rpc
         ; Rpcs.Get_transition_chain.implement_multi get_transition_chain_rpc
         ; Rpcs.Ban_notify.implement_multi ban_notify_rpc
+        ; Rpcs.Get_chain_id.implement_multi (fun _ ~version:_ () ->
+              return config.chain_id )
         ; Consensus.Hooks.Rpcs.implementations ~logger:config.logger
             ~local_state:config.consensus_local_state ]
     in
     (* RIGHT HERE before starting the gossip net, query all the initial peers
     with Get_chain_id. Filter to only the ones that are the same as ours. If
     none, fail. *)
-    let%bind gossip_net =
+    let%map gossip_net =
       Gossip_net.create config.gossip_net_params implementations
     in
     don't_wait_for
-      (let%bind () = gossip_net.first_connect in
+      (let%bind () = Ivar.read gossip_net.first_connect in
        (* After first_connect this list will only be empty if we filtered out all the peers due to mismatched chain id. *)
        let initial_peers = Gossip_net.peers gossip_net in
        if List.is_empty initial_peers then
-         Logger.fatal "Failed to connect to any initial peers"
+         Logger.fatal config.logger "Failed to connect to any initial peers"
            ~module_:__MODULE__ ~location:__LOC__ ;
        raise No_initial_peers) ;
     (* TODO: Think about buffering:
@@ -910,6 +958,9 @@ module Make (Inputs : Inputs_intf) = struct
     try_preferred_peer t inet_addr input
       ~rpc:
         Rpcs.Get_staged_ledger_aux_and_pending_coinbases_at_hash.dispatch_multi
+
+  let get_chain_id t peer =
+    query_peer t peer Rpcs.Get_chain_id.dispatch_multi ()
 
   let get_ancestry t inet_addr input =
     try_preferred_peer t inet_addr input ~rpc:Rpcs.Get_ancestry.dispatch_multi

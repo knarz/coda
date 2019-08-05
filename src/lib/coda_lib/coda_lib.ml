@@ -661,3 +661,5 @@ let create (config : Config.t) =
                   ~reassignment_wait:config.work_reassignment_wait
             ; subscriptions
             ; sync_status } ) )
+
+let net {components= {net; _}; _} = net

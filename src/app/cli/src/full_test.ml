@@ -126,12 +126,14 @@ let run_test () : unit Deferred.t =
           ; trust_system
           ; time_controller
           ; consensus_local_state
+          ; chain_id= "bogus chain id for testing"
           ; gossip_net_params=
               { timeout= Time.Span.of_sec 3.
               ; logger
               ; target_peer_count= 8
               ; initial_peers= []
               ; conf_dir= temp_conf_dir
+              ; filter_peer= (fun _ -> return true)
               ; addrs_and_ports=
                   { external_ip= Unix.Inet_addr.localhost
                   ; bind_ip= Unix.Inet_addr.localhost

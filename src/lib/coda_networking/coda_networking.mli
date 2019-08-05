@@ -3,7 +3,7 @@ open Coda_transition
 
 val refused_answer_query_string : string
 
-type exn += Mismatched_chain_id
+type exn += No_initial_peers
 
 module type Base_inputs_intf = Coda_intf.Inputs_intf
 
@@ -41,6 +41,7 @@ module type Config_intf = sig
   type t =
     { logger: Logger.t
     ; trust_system: Trust_system.t
+    ; chain_id: string
     ; gossip_net_params: gossip_config
     ; time_controller: Block_time.Controller.t
     ; consensus_local_state: Consensus.Data.Local_state.t }

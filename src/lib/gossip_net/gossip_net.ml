@@ -9,50 +9,6 @@ open Kademlia
 open O1trace
 module Membership = Membership.Haskell
 
-module Get_chain_id = struct
-  module Master = struct
-    let name = "get_chain_id"
-
-    module T = struct
-      (* "master" types, do not change *)
-      type query = unit
-
-      type response = string
-    end
-
-    module Caller = T
-    module Callee = T
-  end
-
-  include Master.T
-  module M = Versioned_rpc.Both_convert.Plain.Make (Master)
-  include M
-
-  include Perf_histograms.Rpc.Plain.Extend (struct
-    include M
-    include Master
-  end)
-
-  module V1 = struct
-    module T = struct
-      type query = unit [@@deriving bin_io, version {rpc}]
-
-      type response = string [@@deriving bin_io, version {rpc}]
-
-      let query_of_caller_model = Fn.id
-
-      let callee_model_of_query = Fn.id
-
-      let response_of_callee_model = Fn.id
-
-      let caller_model_of_response = Fn.id
-    end
-
-    include T
-    include Register (T)
-  end
-end
-
 type ('q, 'r) dispatch =
   Versioned_rpc.Connection_with_menu.t -> 'q -> 'r Deferred.Or_error.t
 
@@ -71,10 +27,10 @@ module type Config_intf = sig
   type t =
     { timeout: Time.Span.t
     ; target_peer_count: int
-    ; chain_id: string
     ; initial_peers: Host_and_port.t list
     ; addrs_and_ports: Kademlia.Node_addrs_and_ports.t
     ; conf_dir: string
+    ; filter_peer: Peer.t -> bool Deferred.t
     ; logger: Logger.t
     ; trust_system: Trust_system.t
     ; max_concurrent_connections: int option }
@@ -95,7 +51,7 @@ module type S = sig
     ; logger: Logger.t
     ; trust_system: Trust_system.t
     ; conf_dir: string
-    ; chain_id: string
+    ; filter_peer: Peer.t -> bool Deferred.t
     ; target_peer_count: int
     ; broadcast_writer: msg Linear_pipe.Writer.t
     ; received_reader: msg Envelope.Incoming.t Strict_pipe.Reader.t
@@ -158,7 +114,7 @@ module Make (Message : Message_intf) : S with type msg := Message.msg = struct
     ; logger: Logger.t
     ; trust_system: Trust_system.t
     ; conf_dir: string
-    ; chain_id: string
+    ; filter_peer: Peer.t -> bool Deferred.t
     ; target_peer_count: int
     ; broadcast_writer: Message.msg Linear_pipe.Writer.t
     ; received_reader: Message.msg Envelope.Incoming.t Strict_pipe.Reader.t
@@ -185,10 +141,10 @@ module Make (Message : Message_intf) : S with type msg := Message.msg = struct
     type t =
       { timeout: Time.Span.t
       ; target_peer_count: int
-      ; chain_id: string
       ; initial_peers: Host_and_port.t list
       ; addrs_and_ports: Kademlia.Node_addrs_and_ports.t
       ; conf_dir: string
+      ; filter_peer: Peer.t -> bool Deferred.t
       ; logger: Logger.t
       ; trust_system: Trust_system.t
       ; max_concurrent_connections: int option }
@@ -237,7 +193,7 @@ module Make (Message : Message_intf) : S with type msg := Message.msg = struct
       peer ;
     Hash_set.add t.disconnected_peers peer
 
-  let rec record_peer_events t =
+  let record_peer_events t =
     let open Peer.Event in
     trace_task "peer events" (fun () ->
         Linear_pipe.iter_unordered ~max_concurrency:64
@@ -248,39 +204,16 @@ module Make (Message : Message_intf) : S with type msg := Message.msg = struct
                 (Peer.pretty_list peers) ;
               let%map () =
                 Deferred.List.iter peers ~f:(fun peer ->
-                    match%map
-                      try_call_rpc t peer Get_chain_id.dispatch_multi ()
-                    with
-                    | Ok their_chain_id ->
-                        if String.equal their_chain_id t.chain_id then (
-                          Coda_metrics.(Gauge.inc_one Network.peers) ;
-                          Hash_set.add t.peers peer ;
-                          Hashtbl.add_multi t.peers_by_ip ~key:peer.host
-                            ~data:peer ;
-                          if
-                            Int.equal (Hash_set.length t.peers)
-                              disconnect_clear_threshold
-                          then Hash_set.clear t.disconnected_peers
-                          else Hash_set.remove t.disconnected_peers peer )
-                        else
-                          Logger.warn t.logger
-                            "Refusing to connect to %s because their chain ID \
-                             $theirs does not match $ours"
-                            ~location:__LOC__ ~module_:__MODULE__
-                            ~metadata:
-                              [ ("peer", Peer.to_yojson peer)
-                              ; ("theirs", `String their_chain_id)
-                              ; ("ours", `String t.chain_id) ]
-                            (Peer.to_string peer)
-                    | Error e ->
-                        Logger.warn t.logger
-                          "Refusing to connect to %s because retrieving the \
-                           chain ID failed: $error"
-                          ~location:__LOC__ ~module_:__MODULE__
-                          ~metadata:
-                            [ ("peer", Peer.to_yojson peer)
-                            ; ("error", `String (Error.to_string_hum e)) ]
-                          (Peer.to_string peer) )
+                    if%map t.filter_peer peer then (
+                      Coda_metrics.(Gauge.inc_one Network.peers) ;
+                      Hash_set.add t.peers peer ;
+                      Hashtbl.add_multi t.peers_by_ip ~key:peer.host ~data:peer ;
+                      if
+                        Int.equal (Hash_set.length t.peers)
+                          disconnect_clear_threshold
+                      then Hash_set.clear t.disconnected_peers
+                      else Hash_set.remove t.disconnected_peers peer )
+                    else () )
               in
               Ivar.fill_if_empty t.first_connect ()
           | Disconnect peers ->
@@ -290,7 +223,7 @@ module Make (Message : Message_intf) : S with type msg := Message.msg = struct
               Deferred.unit )
         |> ignore )
 
-  and unmark_all_disconnected_peers t =
+  let unmark_all_disconnected_peers t =
     Logger.info t.logger ~module_:__MODULE__ ~location:__LOC__
       !"Clearing disconnected peer set : %{sexp: Peer.t list}"
       (Hash_set.to_list t.disconnected_peers) ;
@@ -318,11 +251,11 @@ module Make (Message : Message_intf) : S with type msg := Message.msg = struct
     | Error _ ->
         failwith "Could not restart Kademlia"
 
-  and is_unix_errno errno unix_errno =
+  let is_unix_errno errno unix_errno =
     Int.equal (Unix.Error.compare errno unix_errno) 0
 
   (* see if we can connect to a disconnected peer, every so often *)
-  and retry_disconnected_peer t =
+  let retry_disconnected_peer t =
     let rec loop () =
       let%bind () = Async.after (Time.Span.of_sec 30.0) in
       let%bind () =
@@ -351,7 +284,7 @@ module Make (Message : Message_intf) : S with type msg := Message.msg = struct
     in
     loop ()
 
-  and try_call_rpc t (peer : Peer.t) (dispatch : ('q, _) dispatch) (query : 'q)
+  let try_call_rpc t (peer : Peer.t) (dispatch : ('q, _) dispatch) (query : 'q)
       =
     let call () =
       Rpc.Connection.with_client (to_where_to_connect t peer) (fun conn ->
@@ -532,6 +465,7 @@ module Make (Message : Message_intf) : S with type msg := Message.msg = struct
           ; ban_notification_reader
           ; ban_notification_writer
           ; membership
+          ; filter_peer= config.filter_peer
           ; connections= Hashtbl.create (module Unix.Inet_addr)
           ; max_concurrent_connections= config.max_concurrent_connections
           ; first_connect }
@@ -590,9 +524,7 @@ module Make (Message : Message_intf) : S with type msg := Message.msg = struct
                     in
                     Strict_pipe.Writer.write received_writer
                       (Envelope.Incoming.wrap ~data:msg ~sender) )
-              @ implementation_list
-              @  Get_chain_id.implement_multi (fun _ ~version:_ () ->
-                      config.chain_id ) )
+              @ implementation_list )
           in
           let handle_unknown_rpc conn ~rpc_tag ~version =
             let inet_addr = Unix.Inet_addr.of_string conn.Host_and_port.host in

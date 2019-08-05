@@ -528,6 +528,7 @@ struct
           ; initial_peers: Host_and_port.t list
           ; addrs_and_ports: Kademlia.Node_addrs_and_ports.t
           ; conf_dir: string
+          ; filter_peer: Network_peer.Peer.t -> bool Deferred.t
           ; logger: Logger.t
           ; trust_system: Trust_system.t
           ; max_concurrent_connections: int option }
@@ -555,6 +556,7 @@ struct
       type t =
         { logger: Logger.t
         ; trust_system: Trust_system.t
+        ; chain_id: string
         ; gossip_net_params: Gossip_net.Config.t
         ; time_controller: Block_time.Controller.t
         ; consensus_local_state: Consensus.Data.Local_state.t }
@@ -689,6 +691,8 @@ struct
     let transaction_pool_diffs _ = failwith "stub"
 
     let snark_pool_diffs _ = failwith "stub"
+
+    let get_chain_id = failwith "stub"
   end
 
   module Network_builder = struct
