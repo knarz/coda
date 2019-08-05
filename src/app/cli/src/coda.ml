@@ -40,9 +40,7 @@ let make_filter_peer net logger peer =
   | Ok their_chain_id ->
       if String.equal their_chain_id our_chain_id then true
       else (
-        Logger.warn logger
-          "Refusing to connect to %s because their chain ID $theirs does not \
-           match $ours"
+        Logger.warn logger "Chain ID mismatch: refusing to connect to %s"
           ~location:__LOC__ ~module_:__MODULE__
           ~metadata:
             [ ("peer", Peer.to_yojson peer)
@@ -52,8 +50,7 @@ let make_filter_peer net logger peer =
         false )
   | Error e ->
       Logger.warn logger
-        "Refusing to connect to %s because retrieving the chain ID failed: \
-         $error"
+        "Retrieving chain ID failed: refusing to connect to %s: $error"
         ~location:__LOC__ ~module_:__MODULE__
         ~metadata:
           [ ("peer", Peer.to_yojson peer)
