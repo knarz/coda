@@ -284,8 +284,7 @@ module Make (Message : Message_intf) : S with type msg := Message.msg = struct
     in
     loop ()
 
-  let try_call_rpc t (peer : Peer.t) (dispatch : ('q, _) dispatch) (query : 'q)
-      =
+  let try_call_rpc t (peer : Peer.t) dispatch query =
     let call () =
       Rpc.Connection.with_client (to_where_to_connect t peer) (fun conn ->
           Versioned_rpc.Connection_with_menu.create conn
