@@ -692,7 +692,7 @@ struct
 
     let snark_pool_diffs _ = failwith "stub"
 
-    let get_chain_id = failwith "stub"
+    let get_chain_id = "bogus chain id for stub"
   end
 
   module Network_builder = struct
