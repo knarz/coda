@@ -20,7 +20,6 @@ let maybe_sleep _ = Deferred.unit
 [%%endif]
 
 let chain_id =
-  (* FIXME: including anything except all_snark_keys is probably unnecessary? *)
   lazy
     (let genesis_state_hash =
        (Lazy.force Coda_state.Genesis_protocol_state.t).hash
