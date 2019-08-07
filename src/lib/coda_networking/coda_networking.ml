@@ -325,50 +325,6 @@ module Make_rpcs (Inputs : Base_inputs_intf) = struct
       include Register (T)
     end
   end
-
-  module Get_chain_id = struct
-    module Master = struct
-      let name = "get_chain_id"
-
-      module T = struct
-        (* "master" types, do not change *)
-        type query = unit
-
-        type response = string
-      end
-
-      module Caller = T
-      module Callee = T
-    end
-
-    include Master.T
-    module M = Versioned_rpc.Both_convert.Plain.Make (Master)
-    include M
-
-    include Perf_histograms.Rpc.Plain.Extend (struct
-      include M
-      include Master
-    end)
-
-    module V1 = struct
-      module T = struct
-        type query = unit [@@deriving bin_io, version {rpc}]
-
-        type response = string [@@deriving bin_io, version {rpc}]
-
-        let query_of_caller_model = Fn.id
-
-        let callee_model_of_query = Fn.id
-
-        let response_of_callee_model = Fn.id
-
-        let caller_model_of_response = Fn.id
-      end
-
-      include T
-      include Register (T)
-    end
-  end
 end
 
 module Make_message (Inputs : sig
@@ -955,9 +911,6 @@ module Make (Inputs : Inputs_intf) = struct
     try_preferred_peer t inet_addr input
       ~rpc:
         Rpcs.Get_staged_ledger_aux_and_pending_coinbases_at_hash.dispatch_multi
-
-  let get_chain_id t peer =
-    query_peer t peer Rpcs.Get_chain_id.dispatch_multi ()
 
   let get_ancestry t inet_addr input =
     try_preferred_peer t inet_addr input ~rpc:Rpcs.Get_ancestry.dispatch_multi

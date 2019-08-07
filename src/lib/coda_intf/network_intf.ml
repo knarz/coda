@@ -91,8 +91,6 @@ module type Network_intf = sig
     -> 'q
     -> 'r Deferred.Or_error.t
 
-  val get_chain_id : t -> Network_peer.Peer.t -> string Deferred.Or_error.t
-
   val initial_peers : t -> Host_and_port.t list
 
   val peers_by_ip : t -> Unix.Inet_addr.t -> Network_peer.Peer.t list

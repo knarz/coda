@@ -528,7 +528,7 @@ struct
           ; initial_peers: Host_and_port.t list
           ; addrs_and_ports: Kademlia.Node_addrs_and_ports.t
           ; conf_dir: string
-          ; filter_peer: Network_peer.Peer.t -> bool Deferred.t
+          ; chain_id: string
           ; logger: Logger.t
           ; trust_system: Trust_system.t
           ; max_concurrent_connections: int option }
@@ -691,8 +691,6 @@ struct
     let transaction_pool_diffs _ = failwith "stub"
 
     let snark_pool_diffs _ = failwith "stub"
-
-    let get_chain_id _ _ = Deferred.Or_error.return "bogus chain id for stub"
   end
 
   module Network_builder = struct
