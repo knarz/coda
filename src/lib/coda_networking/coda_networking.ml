@@ -438,7 +438,6 @@ module type Config_intf = sig
   type t =
     { logger: Logger.t
     ; trust_system: Trust_system.t
-    ; chain_id: string
     ; gossip_net_params: gossip_config
     ; time_controller: Block_time.Controller.t
     ; consensus_local_state: Consensus.Data.Local_state.t }
@@ -465,7 +464,6 @@ module Make (Inputs : Inputs_intf) = struct
     type t =
       { logger: Logger.t
       ; trust_system: Trust_system.t
-      ; chain_id: string
       ; gossip_net_params: Gossip_net.Config.t
       ; time_controller: Block_time.Controller.t
       ; consensus_local_state: Consensus.Data.Local_state.t }
@@ -661,8 +659,6 @@ module Make (Inputs : Inputs_intf) = struct
             get_transition_chain_witness_rpc
         ; Rpcs.Get_transition_chain.implement_multi get_transition_chain_rpc
         ; Rpcs.Ban_notify.implement_multi ban_notify_rpc
-        ; Rpcs.Get_chain_id.implement_multi (fun _ ~version:_ () ->
-              return config.chain_id )
         ; Consensus.Hooks.Rpcs.implementations ~logger:config.logger
             ~local_state:config.consensus_local_state ]
     in

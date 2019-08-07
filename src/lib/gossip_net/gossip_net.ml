@@ -12,49 +12,49 @@ module Membership = Membership.Haskell
 type ('q, 'r) dispatch =
   Versioned_rpc.Connection_with_menu.t -> 'q -> 'r Deferred.Or_error.t
 
-  module Get_chain_id = struct
-    module Master = struct
-      let name = "get_chain_id"
+module Get_chain_id = struct
+  module Master = struct
+    let name = "get_chain_id"
 
-      module T = struct
-        (* "master" types, do not change *)
-        type query = unit
+    module T = struct
+      (* "master" types, do not change *)
+      type query = unit
 
-        type response = string
-      end
-
-      module Caller = T
-      module Callee = T
+      type response = string
     end
 
-    include Master.T
-    module M = Versioned_rpc.Both_convert.Plain.Make (Master)
-    include M
-
-    include Perf_histograms.Rpc.Plain.Extend (struct
-      include M
-      include Master
-    end)
-
-    module V1 = struct
-      module T = struct
-        type query = unit [@@deriving bin_io, version {rpc}]
-
-        type response = string [@@deriving bin_io, version {rpc}]
-
-        let query_of_caller_model = Fn.id
-
-        let callee_model_of_query = Fn.id
-
-        let response_of_callee_model = Fn.id
-
-        let caller_model_of_response = Fn.id
-      end
-
-      include T
-      include Register (T)
-    end
+    module Caller = T
+    module Callee = T
   end
+
+  include Master.T
+  module M = Versioned_rpc.Both_convert.Plain.Make (Master)
+  include M
+
+  include Perf_histograms.Rpc.Plain.Extend (struct
+    include M
+    include Master
+  end)
+
+  module V1 = struct
+    module T = struct
+      type query = unit [@@deriving bin_io, version {rpc}]
+
+      type response = string [@@deriving bin_io, version {rpc}]
+
+      let query_of_caller_model = Fn.id
+
+      let callee_model_of_query = Fn.id
+
+      let response_of_callee_model = Fn.id
+
+      let caller_model_of_response = Fn.id
+    end
+
+    include T
+    include Register (T)
+  end
+end
 
 module type Message_intf = sig
   type msg [@@deriving to_yojson]
@@ -240,8 +240,10 @@ module Make (Message : Message_intf) : S with type msg := Message.msg = struct
   let is_unix_errno errno unix_errno =
     Int.equal (Unix.Error.compare errno unix_errno) 0
 
-  let rec try_call_rpc : 'r 'q. t -> Peer.t -> ('r, 'q) dispatch -> 'r -> 'q Deferred.Or_error.t =
-    fun t peer dispatch query ->
+  let rec try_call_rpc :
+            'r 'q.    t -> Peer.t -> ('r, 'q) dispatch -> 'r
+            -> 'q Deferred.Or_error.t =
+   fun t peer dispatch query ->
     let call () =
       Rpc.Connection.with_client (to_where_to_connect t peer) (fun conn ->
           Versioned_rpc.Connection_with_menu.create conn
@@ -404,6 +406,7 @@ module Make (Message : Message_intf) : S with type msg := Message.msg = struct
         record_peer_events t
     | Error _ ->
         failwith "Could not restart Kademlia"
+
   and filter_peer t peer =
     match%map try_call_rpc t peer Get_chain_id.dispatch_multi () with
     | Ok their_chain_id ->
@@ -591,6 +594,8 @@ module Make (Message : Message_intf) : S with type msg := Message.msg = struct
                     in
                     Strict_pipe.Writer.write received_writer
                       (Envelope.Incoming.wrap ~data:msg ~sender) )
+              @ Get_chain_id.implement_multi (fun _ ~version:_ () ->
+                    return config.chain_id )
               @ implementation_list )
           in
           let handle_unknown_rpc conn ~rpc_tag ~version =

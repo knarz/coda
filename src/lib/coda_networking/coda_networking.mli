@@ -41,7 +41,6 @@ module type Config_intf = sig
   type t =
     { logger: Logger.t
     ; trust_system: Trust_system.t
-    ; chain_id: string
     ; gossip_net_params: gossip_config
     ; time_controller: Block_time.Controller.t
     ; consensus_local_state: Consensus.Data.Local_state.t }
